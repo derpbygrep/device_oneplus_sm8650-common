@@ -80,6 +80,7 @@ BOARD_MKBOOTIMG_INIT_ARGS += --header_version $(BOARD_INIT_BOOT_HEADER_VERSION)
 # Kernel
 BOARD_BOOTCONFIG := \
     androidboot.console=0 \
+    androidboot.selinux=permissive \
     androidboot.hardware=qcom \
     androidboot.hypervisor.protected_vm.supported=true \
     androidboot.load_modules_parallel=true \
@@ -101,14 +102,16 @@ TARGET_KERNEL_CONFIG := \
     vendor/oplus/pineapple_GKI.config
 
 # Kernel modules
-BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.system_dlkm.list.msm.pineapple))
+BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.system_dlkm.list.msm.pineapple))
 SYSTEM_KERNEL_MODULES := $(BOARD_SYSTEM_KERNEL_MODULES_LOAD)
-BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE := $(TARGET_KERNEL_SOURCE)/modules.vendor_blocklist.msm.pineapple
-BOARD_VENDOR_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.vendor_dlkm.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.vendor_dlkm.list.oplus.pineapple))
+BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE := $(COMMON_PATH)/modules.vendor_blocklist.msm.pineapple
+BOARD_VENDOR_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.vendor_dlkm.list.msm.pineapple $(COMMON_PATH)/modules.vendor_dlkm.list.oplus.pineapple))
 BOARD_VENDOR_RAMDISK_KERNEL_MODULES_BLOCKLIST_FILE := $(BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE)
-BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.vendor_boot.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.vendor_boot.list.oplus.pineapple))
-BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.recovery.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.recovery.list.oplus.pineapple))
+BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.vendor_boot.list.msm.pineapple $(COMMON_PATH)/modules.vendor_boot.list.oplus.pineapple))
+BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.recovery.list.msm.pineapple $(COMMON_PATH)/modules.recovery.list.oplus.pineapple))
 BOOT_KERNEL_MODULES := $(BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD)
+
+#TARGET_KERNEL_CLANG_VERSION := r563880c
 
 TARGET_KERNEL_EXT_MODULE_ROOT := kernel/oneplus/sm8650-modules
 TARGET_KERNEL_EXT_MODULES := \
@@ -166,13 +169,13 @@ TARGET_KERNEL_EXT_MODULES += \
 # Platform
 BOARD_USES_QCOM_HARDWARE := true
 TARGET_BOARD_PLATFORM := pineapple
+TARGET_KERNEL_ADDITIONAL_FLAGS += TARGET_BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 
 # Metadata
 BOARD_USES_METADATA_PARTITION := true
 
 # Partitions
 BOARD_PRODUCTIMAGE_MINIMAL_PARTITION_RESERVED_SIZE := false
--include vendor/lineage/config/BoardConfigReservedSize.mk
 BOARD_BOOTIMAGE_PARTITION_SIZE := 201326592
 BOARD_DTBOIMG_PARTITION_SIZE := 25165824
 BOARD_INIT_BOOT_IMAGE_PARTITION_SIZE := 8388608
