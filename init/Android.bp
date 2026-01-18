@@ -17,16 +17,8 @@ prebuilt_etc {
     name: "fstab.qcom",
     src: "fstab.qcom",
     vendor: true,
-    vendor_ramdisk_available: true,
 }
 
-prebuilt_etc {
-   name: "init.qti.kernel.rc",
-   src: "init.qti.kernel.rc",
-   sub_dir: "init/hw",
-   vendor: true,
-}
- 
 prebuilt_etc {
     name: "init.oplus.rc",
     src: "init.oplus.rc",
@@ -76,10 +68,17 @@ sh_binary {
 }
 
 sh_binary {
-    name: "init.kernel.post_boot-cliffs_default_3_4_1.sh",
-    src: "init.kernel.post_boot-cliffs_default_3_4_1.sh",
+    name: "init.kernel.post_boot.sh",
+    src: "init.kernel.post_boot.sh",
     vendor: true,
 }
+
+sh_binary {
+    name: "init.oplus.sh",
+    src: "init.oplus.sh",
+    device_specific: true,
+}
+
 
 sh_binary {
     name: "init.kernel.post_boot-pineapple.sh",
@@ -90,12 +89,6 @@ sh_binary {
 sh_binary {
     name: "init.kernel.post_boot-pineapple_default_2_3_2_1.sh",
     src: "init.kernel.post_boot-pineapple_default_2_3_2_1.sh",
-    vendor: true,
-}
-
-sh_binary {
-    name: "init.kernel.post_boot.sh",
-    src: "init.kernel.post_boot.sh",
     vendor: true,
 }
 

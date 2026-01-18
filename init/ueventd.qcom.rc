@@ -63,13 +63,7 @@
 # Firmware directory Path
 # Below macro will be read by uevent and path will
 # be added to search path for firmware loading
-# ifndef OPLUS_FEATURE_WIFI_BDF
-# fangzhijun@CONNECTIVITY.WIFI.HARDWARE.BDF.5719240 , 2023/06/13,
-# Modify for: multi projects using different bdf, adding persist into firmware_directories
-# firmware_directories /vendor/firmware_mnt/image/ /vendor/soccp_firmware/image/ /vendor/dcp_firmware/image/
-# else /* OPLUS_FEATURE_WIFI_BDF */
-firmware_directories /mnt/vendor/persist/copy/ /odm/etc/wifi/ /mnt/vendor/persist/ /vendor/firmware_mnt/image/ /vendor/soccp_firmware/image/ /vendor/dcp_firmware/image/
-# endif /* OPLUS_FEATURE_WIFI_BDF */
+firmware_directories /vendor/firmware_mnt/image/ /vendor/soccp_firmware/image/ /vendor/dcp_firmware/image/
 
 subsystem dma_heap
     devname uevent_devpath
@@ -133,6 +127,7 @@ subsystem mem_buf_vm
 /dev/smd3                 0660   bluetooth  bluetooth
 /dev/btpower              0660   bluetooth  system
 /dev/btfmslim             0660   bluetooth  system
+/dev/btfmswr              0660   bluetooth  system
 /dev/bt_cp_ctrl           0660   bluetooth  system
 /dev/btfmcodec_dev        0660   bluetooth  system
 
@@ -193,6 +188,8 @@ subsystem mem_buf_vm
 /dev/mhi_*_pipe_32        0640   radio      radio
 /dev/at_usb0              0640   radio      radio
 /dev/at_mdm0              0640   radio      radio
+/dev/ims_dc_sub1          0640   radio      radio
+/dev/ims_dc_sub2          0640   radio      radio
 /dev/video*               0660   system     camera
 /dev/cvp*                 0660   system     camera
 /dev/media*               0660   system     camera
@@ -388,6 +385,14 @@ subsystem mem_buf_vm
 /sys/devices/soc/600000.qcom,pcie/pci0000:00/0000:00:00.0/0000:01:00.0/net/wlan0/queues/rx-* rps_cpus 0660 system system
 /sys/devices/soc/600000.qcom,pcie/pci0000:00/0000:00:00.0/0000:01:00.0/net/p2p0/queues/rx-* rps_cpus 0660 system system
 
+# wigig
+/sys/bus/pci/drivers/wil6210* 0000:01:00.0/wil6210/fst_link_loss 0660 wifi wifi
+/sys/bus/pci/drivers/wil6210* 0000:01:00.0/wil6210/thermal_throttling 0660 system system
+/sys/bus/pci/drivers/wil6210* 0000:01:00.0/wil6210/snr_thresh 0660 wifi wifi
+/sys/bus/pci/drivers/wil6210* 0000:01:00.0/net/wigig0/queues/rx-0/rps_cpus 0660 system system
+/sys/bus/pci/drivers/wil6210* 0000:01:00.0/net/wigig0/gro_flush_timeout 0660 system system
+/sys/devices/virtual/net/bond0 queues/rx-0/rps_cpus 0660 system system
+
 #nfc permissions
 /dev/nfc-nci              0660    nfc         nfc
 /dev/nq-nci               0660    nfc         nfc
@@ -396,7 +401,6 @@ subsystem mem_buf_vm
 
 # eSE permissions
 /dev/st54spi_gpio         0660   system     system
-/dev/stsafe320_gpio       0660   system     system
 
 # UIO devices
 /dev/uio0                 0660   system     system
@@ -467,6 +471,10 @@ subsystem mem_buf_vm
 /sys/class/leds/blue     repeat       0640    system    system
 /sys/class/leds/blue     hw_pattern   0640    system    system
 
+#Haptics class devices
+/sys/class/qcom-haptics    visense_enabled     0400    system    system
+/sys/class/qcom-haptics    primitive_duration  0600    system    system
+
 # NPU device
 /dev/msm_npu             0644   system     system
 
@@ -536,7 +544,6 @@ subsystem mem_buf_vm
 /sys/class/graphics/fb0     msm_cmd_autorefresh_en   0664    system  graphics
 
 /sys/devices/platform/soc/ae00000.qcom,mdss_mdp power/control 0664 system graphics
-/sys/devices/platform/soc/9800000.qcom,mdss_mdp power/control 0664 system graphics
 
 #asm330 sensor
 #common sensors files
@@ -608,13 +615,14 @@ subsystem mem_buf_vm
 # Q2SPI UWB device
 /dev/q2spiuwb    0660    uwb    uwb
 
-# RemoteProc attributes
-/sys/class/remoteproc/remoteproc*   state     0660    root  system
-/sys/class/remoteproc/remoteproc*   recovery  0660    root  system
-
 # SPI UWB device
 /dev/spiuwb    0660    uwb    uwb
 
+# RemoteProc state
+/sys/class/remoteproc/remoteproc*   state    0660    root  system
+
+# IPA Events
+/dev/ipa_events         0660   radio      radio
+
 #power_state device node
 /dev/power_state           0660   system      system
-

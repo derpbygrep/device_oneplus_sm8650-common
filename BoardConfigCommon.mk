@@ -1,8 +1,11 @@
 #
-# Copyright (C) 2021-2025 The LineageOS Project
+# Copyright (C) 2021-2024 The LineageOS Project
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+
+BUILD_BROKEN_DUP_RULES := true
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 
 COMMON_PATH := device/oneplus/sm8650-common
 
@@ -28,10 +31,9 @@ AB_OTA_PARTITIONS += \
 
 # Architecture
 TARGET_ARCH := arm64
-TARGET_ARCH_VARIANT := armv8-2a-dotprod
+TARGET_ARCH_VARIANT := armv9-a
 TARGET_CPU_ABI := arm64-v8a
-TARGET_CPU_VARIANT := generic
-TARGET_CPU_VARIANT_RUNTIME := kryo300
+TARGET_CPU_VARIANT := kryo785
 
 # Audio
 AUDIO_FEATURE_ENABLED_DLKM := true
@@ -40,6 +42,7 @@ AUDIO_FEATURE_ENABLED_GEF_SUPPORT := true
 AUDIO_FEATURE_ENABLED_GKI := true
 AUDIO_FEATURE_ENABLED_INSTANCE_ID := true
 AUDIO_FEATURE_ENABLED_AGM_HIDL := true
+AUDIO_FEATURE_ENABLED_LSM_HIDL := true
 AUDIO_FEATURE_ENABLED_PAL_HIDL := true
 AUDIO_FEATURE_ENABLED_PROXY_DEVICE := true
 AUDIO_FEATURE_ENABLED_SSR := true
@@ -47,9 +50,6 @@ AUDIO_FEATURE_ENABLED_SVA_MULTI_STAGE := true
 BOARD_SUPPORTS_OPENSOURCE_STHAL := true
 BOARD_SUPPORTS_SOUND_TRIGGER := true
 BOARD_USES_ALSA_AUDIO := true
-TARGET_PROVIDES_AUDIO_HAL := true
-TARGET_PROVIDES_LIBAGM := true
-TARGET_PROVIDES_LIBAR_PAL := true
 
 # Bootloader
 TARGET_BOOTLOADER_BOARD_NAME := pineapple
@@ -64,6 +64,9 @@ BOARD_INCLUDE_DTB_IN_BOOTIMG := true
 BOARD_USES_QCOM_MERGE_DTBS_SCRIPT := true
 TARGET_NEEDS_DTBOIMAGE := true
 
+# Camera
+TARGET_CAMERA_PACKAGE_NAME := com.oplus.camera
+
 # Properties
 TARGET_ODM_PROP += $(COMMON_PATH)/odm.prop
 TARGET_PRODUCT_PROP += $(COMMON_PATH)/product.prop
@@ -73,19 +76,39 @@ TARGET_VENDOR_PROP += $(COMMON_PATH)/vendor.prop
 # Filesystem
 TARGET_FS_CONFIG_GEN := $(COMMON_PATH)/config.fs
 
+# Fingerprint
+TARGET_SURFACEFLINGER_UDFPS_LIB := //hardware/oplus:libudfps_extension.oplus
+
+# HIDL
+DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE := \
+    hardware/oplus/vintf/device_framework_matrix.xml \
+    hardware/qcom-caf/common/vendor_framework_compatibility_matrix.xml \
+    vendor/yaap/config/device_framework_matrix.xml
+DEVICE_FRAMEWORK_MANIFEST_FILE += $(COMMON_PATH)/framework_manifest.xml
+DEVICE_MATRIX_FILE := hardware/qcom-caf/common/compatibility_matrix.xml
+DEVICE_MANIFEST_FILE := \
+    $(COMMON_PATH)/manifest.xml \
+    $(COMMON_PATH)/network_manifest.xml
+
+ODM_MANIFEST_FILES := \
+    $(COMMON_PATH)/network_manifest_odm.xml
+
+# Init
+TARGET_INIT_VENDOR_LIB := //$(COMMON_PATH):libinit_oplus
+
 # Init Boot
 BOARD_INIT_BOOT_HEADER_VERSION := 4
 BOARD_MKBOOTIMG_INIT_ARGS += --header_version $(BOARD_INIT_BOOT_HEADER_VERSION)
 
 # Kernel
 BOARD_BOOTCONFIG := \
-    androidboot.console=0 \
     androidboot.hardware=qcom \
-    androidboot.hypervisor.protected_vm.supported=true \
-    androidboot.load_modules_parallel=true \
     androidboot.memcg=1 \
     androidboot.vendor.qspa=true \
-    androidboot.usbcontroller=a600000.dwc3
+    androidboot.usbcontroller=a600000.dwc3 \
+    androidboot.console=0
+
+TARGET_KERNEL_CLANG_VERSION := r563880c
 
 BOARD_USES_GENERIC_KERNEL_IMAGE := true
 BOARD_KERNEL_BASE := 0x00000000
@@ -93,21 +116,19 @@ BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_IMAGE_NAME := Image
 
 TARGET_KERNEL_SOURCE := kernel/oneplus/sm8650
-
-TARGET_KERNEL_ADDITIONAL_FLAGS := CONFIG_OPLUS_DEVICE_DTBS=y
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
     vendor/pineapple_GKI.config \
     vendor/oplus/pineapple_GKI.config
 
 # Kernel modules
-BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.system_dlkm.list.msm.pineapple))
+BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.load.system_dlkm))
 SYSTEM_KERNEL_MODULES := $(BOARD_SYSTEM_KERNEL_MODULES_LOAD)
-BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE := $(TARGET_KERNEL_SOURCE)/modules.vendor_blocklist.msm.pineapple
-BOARD_VENDOR_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.vendor_dlkm.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.vendor_dlkm.list.oplus.pineapple))
+BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE := $(COMMON_PATH)/modules.blocklist
+BOARD_VENDOR_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.load.pineapple $(COMMON_PATH)/modules.load.oplus))
 BOARD_VENDOR_RAMDISK_KERNEL_MODULES_BLOCKLIST_FILE := $(BOARD_VENDOR_KERNEL_MODULES_BLOCKLIST_FILE)
-BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.vendor_boot.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.vendor_boot.list.oplus.pineapple))
-BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(TARGET_KERNEL_SOURCE)/modules.recovery.list.msm.pineapple $(TARGET_KERNEL_SOURCE)/modules.recovery.list.oplus.pineapple))
+BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.load.vendor_boot.pineapple $(COMMON_PATH)/modules.load.vendor_boot.oplus))
+BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(COMMON_PATH)/modules.load.recovery.pineapple $(COMMON_PATH)/modules.load.recovery.oplus))
 BOOT_KERNEL_MODULES := $(BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD)
 
 TARGET_KERNEL_EXT_MODULE_ROOT := kernel/oneplus/sm8650-modules
@@ -136,15 +157,13 @@ TARGET_KERNEL_EXT_MODULES := \
     qcom/opensource/video-driver \
     qcom/opensource/graphics-kernel \
     qcom/opensource/wlan/platform \
-    qcom/opensource/wlan/qcacld-3.0/.kiwi_v2 \
-    qcom/opensource/wlan/qcacld-3.0/.qca6750 \
+    qcom/opensource/wlan/qcacld-3.0 \
     qcom/opensource/bt-kernel \
     qcom/opensource/spu-kernel \
     qcom/opensource/mm-sys-kernel/ubwcp \
     nxp/opensource/driver
 
 TARGET_KERNEL_EXT_MODULES += \
-    oplus/hardware/radio/kernel/mdmfeature:kbuild \
     oplus/kernel/cpu/thermal:kbuild \
     oplus/kernel/device_info/pogo_keyboard:kbuild \
     oplus/kernel/device_info/tri_state_key:kbuild \
@@ -158,7 +177,6 @@ TARGET_KERNEL_EXT_MODULES += \
     oplus/kernel/touchpanel/oplus_touchscreen_v2:kbuild \
     oplus/kernel/touchpanel/synaptics_hbp:kbuild \
     oplus/kernel/tp/hbp/hbp:kbuild \
-    oplus/secure/biometrics/fingerprints/bsp/uff/driver:kbuild \
     oplus/secure/common/bsp/drivers/oplus_secure_common \
     oplus/sensor/kernel/oplus_consumer_ir:kbuild \
     oplus/sensor/kernel/qcom/sensor:kbuild
@@ -166,13 +184,15 @@ TARGET_KERNEL_EXT_MODULES += \
 # Platform
 BOARD_USES_QCOM_HARDWARE := true
 TARGET_BOARD_PLATFORM := pineapple
+TARGET_KERNEL_ADDITIONAL_FLAGS += TARGET_BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 
 # Metadata
 BOARD_USES_METADATA_PARTITION := true
 
 # Partitions
+BOARD_EROFS_COMPRESSOR := lz4
+BOARD_EROFS_PCLUSTER_SIZE := 262144
 BOARD_PRODUCTIMAGE_MINIMAL_PARTITION_RESERVED_SIZE := false
--include vendor/lineage/config/BoardConfigReservedSize.mk
 BOARD_BOOTIMAGE_PARTITION_SIZE := 201326592
 BOARD_DTBOIMG_PARTITION_SIZE := 25165824
 BOARD_INIT_BOOT_IMAGE_PARTITION_SIZE := 8388608
@@ -180,9 +200,9 @@ BOARD_USERDATAIMAGE_PARTITION_SIZE := 233523179520
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 201326592
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 104857600
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := erofs
-BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE := ext4
-BOARD_SYSTEM_EXTIMAGE_FILE_SYSTEM_TYPE := ext4
-BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE := ext4
+BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE := erofs
+BOARD_SYSTEM_EXTIMAGE_FILE_SYSTEM_TYPE := erofs
+BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE := erofs
 BOARD_SYSTEM_DLKMIMAGE_FILE_SYSTEM_TYPE := erofs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := erofs
 BOARD_VENDOR_DLKMIMAGE_FILE_SYSTEM_TYPE := erofs
@@ -208,12 +228,17 @@ TARGET_USERIMAGES_USE_F2FS := true
 ENABLE_VENDOR_RIL_SERVICE := true
 
 # Security
-BOOT_SECURITY_PATCH := 2025-12-01
+BOOT_SECURITY_PATCH := 2025-11-01
 VENDOR_SECURITY_PATCH := $(BOOT_SECURITY_PATCH)
 
 # SEPolicy
-include device/qcom/sepolicy_vndr/SEPolicy.mk
 include hardware/oplus/sepolicy/qti/SEPolicy.mk
+include device/qcom/sepolicy_vndr/SEPolicy.mk
+
+# Touch
+SOONG_CONFIG_NAMESPACES += OPLUS_LINEAGE_TOUCH_HAL
+SOONG_CONFIG_OPLUS_LINEAGE_TOUCH_HAL := INCLUDE_DIR
+SOONG_CONFIG_OPLUS_LINEAGE_TOUCH_HAL_INCLUDE_DIR := $(COMMON_PATH)/touch/include
 
 # Verified Boot
 BOARD_AVB_ENABLE := true
@@ -246,6 +271,12 @@ BOARD_AVB_VBMETA_VENDOR_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
 BOARD_AVB_VBMETA_VENDOR_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_VENDOR_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
 BOARD_AVB_VBMETA_VENDOR_ROLLBACK_INDEX_LOCATION := 5
+
+# Use sha256 hash algorithm for odm system_dlkm vendor_dlkm vendor partition
+BOARD_AVB_ODM_ADD_HASHTREE_FOOTER_ARGS += --hash_algorithm sha256
+BOARD_AVB_SYSTEM_DLKM_ADD_HASHTREE_FOOTER_ARGS += --hash_algorithm sha256
+BOARD_AVB_VENDOR_DLKM_ADD_HASHTREE_FOOTER_ARGS += --hash_algorithm sha256
+BOARD_AVB_VENDOR_ADD_HASHTREE_FOOTER_ARGS += --hash_algorithm sha256
 
 # WiFi
 BOARD_WLAN_DEVICE := qcwcn

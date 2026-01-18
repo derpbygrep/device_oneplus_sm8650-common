@@ -506,8 +506,6 @@ function sdm660_sched_schedutil_dcvs() {
         echo 1401600 > /sys/devices/system/cpu/cpu4/cpufreq/schedutil/hispeed_freq
     fi
 
-    echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
-
     #if the kernel version >=4.19,set input_boost_freq accordingly
     if [ $KernelVersionA -ge 4 ] && [ $KernelVersionB -ge 19 ]; then
         echo "0:1401600" > /sys/devices/system/cpu/cpu_boost/input_boost_freq
@@ -607,9 +605,7 @@ function configure_zram_parameters() {
         let zRamSizeMB=4096
     fi
 
-    if [ "$low_ram" == "true" ]; then
-        echo lz4 > /sys/block/zram0/comp_algorithm
-    fi
+    echo lz4 > /sys/block/zram0/comp_algorithm
 
     if [ -f /sys/block/zram0/disksize ]; then
         if [ -f /sys/block/zram0/use_dedup ]; then
@@ -632,26 +628,18 @@ function configure_zram_parameters() {
 }
 
 function configure_read_ahead_kb_values() {
-    MemTotalStr=`cat /proc/meminfo | grep MemTotal`
-    MemTotal=${MemTotalStr:16:8}
+	dmpts=$(ls /sys/block/*/queue/read_ahead_kb | grep -e dm -e mmc)
+	ra_kb=128
 
-    dmpts=$(ls /sys/block/*/queue/read_ahead_kb | grep -e dm -e mmc)
-
-    # Set 128 for <= 3GB &
-    # set 512 for >= 4GB targets.
-    if [ $MemTotal -le 3145728 ]; then
-        echo 128 > /sys/block/mmcblk0/bdi/read_ahead_kb
-        echo 128 > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
-        for dm in $dmpts; do
-            echo 128 > $dm
-        done
-    else
-        echo 512 > /sys/block/mmcblk0/bdi/read_ahead_kb
-        echo 512 > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
-        for dm in $dmpts; do
-            echo 512 > $dm
-        done
-    fi
+	if [ -f /sys/block/mmcblk0/bdi/read_ahead_kb ]; then
+		echo $ra_kb > /sys/block/mmcblk0/bdi/read_ahead_kb
+	fi
+	if [ -f /sys/block/mmcblk0rpmb/bdi/read_ahead_kb ]; then
+		echo $ra_kb > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
+	fi
+	for dm in $dmpts; do
+		echo $ra_kb > $dm
+	done
 }
 
 function disable_core_ctl() {
@@ -817,6 +805,7 @@ else
     # Set allocstall_threshold to 0 for all targets.
     # Set swappiness to 100 for all targets
     echo 0 > /sys/module/vmpressure/parameters/allocstall_threshold
+    echo 0 > /proc/sys/vm/page-cluster
     echo 100 > /proc/sys/vm/swappiness
 
     # Disable wsf for all targets beacause we are using efk.
@@ -2376,7 +2365,6 @@ case "$target" in
             echo 86 > /proc/sys/kernel/sched_upmigrate
             echo 80 > /proc/sys/kernel/sched_group_downmigrate
             echo 90 > /proc/sys/kernel/sched_group_upmigrate
-            echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
             # Enable min frequency adjustment for big cluster
             if [ -f /sys/module/big_cluster_min_freq_adjust/parameters/min_freq_cluster ]; then
@@ -3047,7 +3035,6 @@ case "$target" in
       echo 90 > /proc/sys/kernel/sched_downmigrate
       echo 140 > /proc/sys/kernel/sched_group_upmigrate
       echo 120 > /proc/sys/kernel/sched_group_downmigrate
-      echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
       # configure governor settings for little cluster
       echo "schedutil" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
@@ -3182,8 +3169,6 @@ case "$target" in
             echo 1401600 > /sys/devices/system/cpu/cpu4/cpufreq/schedutil/hispeed_freq
             echo 1056000 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
 
-	    echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
-
             # sched_load_boost as -6 is equivalent to target load as 85. It is per cpu tunable.
             echo -6 >  /sys/devices/system/cpu/cpu0/sched_load_boost
             echo -6 >  /sys/devices/system/cpu/cpu1/sched_load_boost
@@ -3298,7 +3283,6 @@ case "$target" in
       # default sched up and down migrate values are 100 and 95
       echo 85 > /proc/sys/kernel/sched_group_downmigrate
       echo 100 > /proc/sys/kernel/sched_group_upmigrate
-      echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
       # colocation v3 settings
       echo 740000 > /proc/sys/kernel/sched_little_cluster_coloc_fmin_khz
@@ -3404,7 +3388,6 @@ case "$target" in
             # default sched up and down migrate values are 100 and 95
             echo 85 > /proc/sys/kernel/sched_group_downmigrate
             echo 100 > /proc/sys/kernel/sched_group_upmigrate
-            echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
             #colocation v3 settings
             echo 740000 > /proc/sys/kernel/sched_little_cluster_coloc_fmin_khz
@@ -3532,7 +3515,6 @@ case "$target" in
         echo 71 95 > /proc/sys/kernel/sched_upmigrate
         echo 85 > /proc/sys/kernel/sched_group_downmigrate
         echo 100 > /proc/sys/kernel/sched_group_upmigrate
-        echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hyst_ns
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hysteresis_enable_cpus
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hyst_max_ms
@@ -3708,7 +3690,6 @@ case "$target" in
         # default sched up and down migrate values are 100 and 95
         echo 85 > /proc/sys/kernel/sched_group_downmigrate
         echo 100 > /proc/sys/kernel/sched_group_upmigrate
-        echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hyst_ns
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hysteresis_enable_cpus
         echo 0 > /proc/sys/kernel/sched_coloc_busy_hyst_max_ms
@@ -3880,8 +3861,6 @@ case "$target" in
             echo "0:1017600" > /sys/devices/system/cpu/cpu_boost/input_boost_freq
             echo 80 > /sys/devices/system/cpu/cpu_boost/input_boost_ms
 
-	    echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
-
             # sched_load_boost as -6 is equivalent to target load as 85. It is per cpu tunable.
             echo -6 >  /sys/devices/system/cpu/cpu0/sched_load_boost
             echo -6 >  /sys/devices/system/cpu/cpu1/sched_load_boost
@@ -4050,7 +4029,6 @@ case "$target" in
     # default sched up and down migrate values are 100 and 95
     echo 85 > /proc/sys/kernel/sched_group_downmigrate
     echo 100 > /proc/sys/kernel/sched_group_upmigrate
-    echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
     #colocation v3 settings
     echo 740000 > /proc/sys/kernel/sched_little_cluster_coloc_fmin_khz
@@ -4660,8 +4638,6 @@ case "$target" in
 		echo N > /sys/module/lpm_levels/parameters/sleep_disabled
 	fi
 	echo N > /sys/module/lpm_levels/parameters/sleep_disabled
-        # Starting io prefetcher service
-        start iop
 
         # Set Memory parameters
         configure_memory_parameters
@@ -4722,7 +4698,6 @@ case "$target" in
 	echo 85 > /proc/sys/kernel/sched_downmigrate
 	echo 100 > /proc/sys/kernel/sched_group_upmigrate
 	echo 95 > /proc/sys/kernel/sched_group_downmigrate
-	echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
 	# configure governor settings for little cluster
 	echo "schedutil" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
@@ -4858,7 +4833,6 @@ case "$target" in
 	echo 85 85 > /proc/sys/kernel/sched_downmigrate
 	echo 100 > /proc/sys/kernel/sched_group_upmigrate
 	echo 10 > /proc/sys/kernel/sched_group_downmigrate
-	echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
 	# cpuset parameters
 	echo 0-3 > /dev/cpuset/background/cpus
@@ -5034,7 +5008,6 @@ case "$target" in
 	echo 85 85 > /proc/sys/kernel/sched_downmigrate
 	echo 100 > /proc/sys/kernel/sched_group_upmigrate
 	echo 10 > /proc/sys/kernel/sched_group_downmigrate
-	echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 
 	# cpuset parameters
 	echo 0-3 > /dev/cpuset/background/cpus
@@ -5272,7 +5245,6 @@ case "$target" in
 	echo 85 85 > /proc/sys/kernel/sched_downmigrate
 	echo 100 > /proc/sys/kernel/sched_group_upmigrate
 	echo 85 > /proc/sys/kernel/sched_group_downmigrate
-	echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 	echo 400000000 > /proc/sys/kernel/sched_coloc_downmigrate_ns
 
 	# cpuset parameters
@@ -5424,7 +5396,6 @@ case "$target" in
 	echo 5 > /proc/sys/kernel/sched_spill_nr_run
 	echo 1 > /proc/sys/kernel/sched_restrict_cluster_spill
         echo 1 > /proc/sys/kernel/sched_prefer_sync_wakee_to_waker
-	start iop
 
         # disable thermal bcl hotplug to switch governor
         echo 0 > /sys/module/msm_thermal/core_control/enabled

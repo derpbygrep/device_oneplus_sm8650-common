@@ -43,14 +43,12 @@ function configure_zram_parameters() {
 	let zRamSizeMB="( $RamSizeGB * 1024 ) * 3 / 4"
 
 	# use MB avoid 32 bit overflow
-	if [ $zRamSizeMB -gt 6144 ]; then
-		let zRamSizeMB=6144
+	if [ $zRamSizeMB -gt 8192 ]; then
+		let zRamSizeMB=8192
 	fi
 
-	# And enable lz4 zram compression for Go targets.
-	if [ "$low_ram" == "true" ]; then
-		echo lz4 > /sys/block/zram0/comp_algorithm
-	fi
+	# use lz4 on all targets
+	echo lz4 > /sys/block/zram0/comp_algorithm
 
 	if [ -f /sys/block/zram0/disksize ]; then
 		if [ -f /sys/block/zram0/use_dedup ]; then
@@ -89,21 +87,9 @@ verify_pasr_support()
 }
 
 function configure_read_ahead_kb_values() {
-	MemTotalStr=`cat /proc/meminfo | grep MemTotal`
-	MemTotal=${MemTotalStr:16:8}
+	dmpts=$(ls /sys/block/*/queue/read_ahead_kb | grep -e dm -e mmc)
+	ra_kb=128
 
-	dmpts=$(ls /sys/block/*/queue/read_ahead_kb | grep -e dm -e mmc -e sd)
-	# dmpts holds below read_ahead_kb nodes if exists:
-	# /sys/block/dm-0/queue/read_ahead_kb to /sys/block/dm-10/queue/read_ahead_kb
-	# /sys/block/sda/queue/read_ahead_kb to /sys/block/sdh/queue/read_ahead_kb
-
-	# Set 128 for <= 4GB &
-	# set 512 for >= 5GB targets.
-	if [ $MemTotal -le 4194304 ]; then
-		ra_kb=128
-	else
-		ra_kb=512
-	fi
 	if [ -f /sys/block/mmcblk0/bdi/read_ahead_kb ]; then
 		echo $ra_kb > /sys/block/mmcblk0/bdi/read_ahead_kb
 	fi
@@ -111,9 +97,7 @@ function configure_read_ahead_kb_values() {
 		echo $ra_kb > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
 	fi
 	for dm in $dmpts; do
-		if [ `cat $(dirname $dm)/../removable` -eq 0 ]; then
-			echo $ra_kb > $dm
-		fi
+		echo $ra_kb > $dm
 	done
 }
 
@@ -139,6 +123,8 @@ function configure_memory_parameters() {
 
 	configure_zram_parameters
 	configure_read_ahead_kb_values
+        # Enable ZRAM on boot_complete
+        echo 0 > /proc/sys/vm/page-cluster 0
 	echo 100 > /proc/sys/vm/swappiness
 
 	# Disable periodic kcompactd wakeups. We do not use THP, so having many
@@ -180,6 +166,11 @@ function configure_memory_parameters() {
 	else
 		echo 4096 > /proc/sys/vm/min_free_kbytes
 	fi
+
+	# configure boost pool
+	if [ $RamSizeGB -ge 10 ]; then
+		echo 128000 > /proc/boost_pool/camera_pages
+        fi
 
 	#Set per-app max kgsl reclaim limit and per shrinker call limit
 	if [ -f /sys/class/kgsl/kgsl/page_reclaim_per_call ]; then

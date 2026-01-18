@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021-2025 The LineageOS Project
+# Copyright (C) 2021-2024 The LineageOS Project
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -7,13 +7,16 @@
 # Add common definitions for Qualcomm
 $(call inherit-product, hardware/qcom-caf/common/common.mk)
 
+# ART
+PRODUCT_ENABLE_UFFD_GC := true
+
 # A/B
-$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/launch_with_vendor_ramdisk.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/vabc_features.mk)
 
 AB_OTA_POSTINSTALL_CONFIG += \
     RUN_POSTINSTALL_system=true \
     POSTINSTALL_PATH_system=system/bin/otapreopt_script \
-    FILESYSTEM_TYPE_system=ext4 \
+    FILESYSTEM_TYPE_system=erofs \
     POSTINSTALL_OPTIONAL_system=true
 
 AB_OTA_POSTINSTALL_CONFIG += \
@@ -26,7 +29,14 @@ PRODUCT_PACKAGES += \
     checkpoint_gc \
     otapreopt_script
 
+PRODUCT_VIRTUAL_AB_COMPRESSION_METHOD := lz4
+
 # Audio
+SOONG_CONFIG_NAMESPACES += android_hardware_audio
+SOONG_CONFIG_android_hardware_audio += \
+    run_64bit
+SOONG_CONFIG_android_hardware_audio_run_64bit := true
+
 PRODUCT_PACKAGES += \
     android.hardware.audio@7.1-impl \
     android.hardware.audio.effect@7.0-impl \
@@ -34,22 +44,33 @@ PRODUCT_PACKAGES += \
     android.hardware.bluetooth.audio-impl \
     android.hardware.soundtrigger@2.3-impl \
     audio.bluetooth.default \
-    audio.r_submix.default \
+    audio.primary.pineapple \
+    audio.usb.default \
     audio.usbv2.default \
+    audio.r_submix.default \
+    libagmmixer \
+    libagm \
+    libats \
     libagm_compress_plugin \
     libagm_mixer_plugin \
     libagm_pcm_plugin \
     libaudiochargerlistener \
     libbatterylistener \
-    libcustomva_intf \
+    lib_bt_aptx \
+    lib_bt_ble \
+    lib_bt_bundle \
     libfmpal \
-    libhfp_pal \
     libhotword_intf \
+    libcustomva_intf \
+    libhfp_pal \
     libqcompostprocbundle \
     libqcomvisualizer \
     libqcomvoiceprocessing \
+    libsndcardparser \
+    libtinycompress \
     libvolumelistener \
-    sound_trigger.primary.pineapple
+    sound_trigger.primary.pineapple \
+    vendor.qti.audio-adsprpc-service.rc
 
 AUDIO_HAL_DIR := hardware/qcom-caf/sm8650/audio/primary-hal
 CONFIG_HAL_SRC_DIR := $(AUDIO_HAL_DIR)/configs/pineapple
@@ -60,17 +81,16 @@ PRODUCT_COPY_FILES += \
 $(foreach DEVICE_SKU, $(QCV_FAMILY_SKUS), \
     $(CONFIG_HAL_SRC_DIR)/audio_effects.conf:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_$(DEVICE_SKU)/audio_effects.conf \
     $(CONFIG_HAL_SRC_DIR)/audio_effects.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_$(DEVICE_SKU)/audio_effects.xml \
-    $(LOCAL_PATH)/configs/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_$(DEVICE_SKU)/audio_policy_configuration.xml)
+    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_$(DEVICE_SKU)/audio_policy_configuration.xml)
 
 PRODUCT_COPY_FILES += \
     $(AUDIO_HAL_DIR)/configs/common/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
     $(CONFIG_PAL_SRC_DIR)/card-defs.xml:$(TARGET_COPY_OUT_VENDOR)/etc/card-defs.xml \
     $(CONFIG_HAL_SRC_DIR)/microphone_characteristics.xml:$(TARGET_COPY_OUT_VENDOR)/etc/microphone_characteristics.xml \
     $(CONFIG_PAL_SRC_DIR)/Hapticsconfig.xml:$(TARGET_COPY_OUT_VENDOR)/etc/Hapticsconfig.xml \
-    $(CONFIG_PAL_SRC_DIR)/usecaseKvManager.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usecaseKvManager.xml
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/audio/usbv2_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usbv2_audio_policy_configuration.xml
+    $(LOCAL_PATH)/audio/usbv2_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usbv2_audio_policy_configuration.xml
 
 PRODUCT_COPY_FILES += \
     frameworks/av/services/audiopolicy/config/r_submix_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/r_submix_audio_policy_configuration.xml \
@@ -79,22 +99,45 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.audio.pro.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.audio.pro.xml \
     frameworks/native/data/etc/android.software.midi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.midi.xml
 
+# Authsecret
+PRODUCT_PACKAGES += \
+    android.hardware.authsecret@1.0.vendor
+
 # Bluetooth
 PRODUCT_PACKAGES += \
-    lib_bt_aptx \
-    lib_bt_ble \
-    lib_bt_bundle
+    android.hardware.bluetooth@1.1.vendor \
+    android.hardware.bluetooth.audio-V3-ndk.vendor \
+    vendor.qti.hardware.bluetooth.audio-V1-ndk.vendor \
+    vendor.qti.hardware.bluetooth_audio@2.1.vendor \
+    vendor.qti.hardware.btconfigstore@1.0.vendor \
+    vendor.qti.hardware.btconfigstore@2.0.vendor
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.bluetooth.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth.xml \
     frameworks/native/data/etc/android.hardware.bluetooth_le.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.bluetooth_le.xml
 
+# Blur
+TARGET_ENABLE_BLUR := true
+
 # Boot control
 PRODUCT_PACKAGES += \
+    android.hardware.boot-V1-ndk.vendor \
     android.hardware.boot-service.qti \
     android.hardware.boot-service.qti.recovery
 
 # Camera
+PRODUCT_PACKAGES += \
+    android.frameworks.stats-V1-ndk.vendor \
+    android.hardware.camera.common-V1-ndk.vendor \
+    android.hardware.camera.device-V2-ndk.vendor \
+    android.hardware.camera.metadata-V2-ndk.vendor \
+    android.hardware.camera.provider-V2-ndk.vendor \
+    libcamera_metadata.vendor \
+    libexif.vendor \
+    libutilscallstack.vendor \
+    libyuv.vendor \
+    vendor.qti.hardware.camera.postproc@1.0.vendor
+
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.camera.concurrent.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.concurrent.xml \
     frameworks/native/data/etc/android.hardware.camera.flash-autofocus.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.flash-autofocus.xml \
@@ -102,17 +145,48 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.camera.full.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.full.xml \
     frameworks/native/data/etc/android.hardware.camera.raw.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.raw.xml
 
+# Configstore
+PRODUCT_PACKAGES += \
+    vendor.qti.hardware.capabilityconfigstore@1.0.vendor
+
 # Context Hub
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.context_hub.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/android.hardware.context_hub.xml
-endif
 
 # Dalvik
-$(call inherit-product, frameworks/native/build/phone-xhdpi-6144-dalvik-heap.mk)
+PRODUCT_VENDOR_PROPERTIES += \
+    dalvik.vm.heapstartsize=24m \
+    dalvik.vm.heapgrowthlimit=384m \
+    dalvik.vm.heapsize=512m \
+    dalvik.vm.heaptargetutilization=0.42 \
+    dalvik.vm.heapminfree=8m \
+    dalvik.vm.heapmaxfree=56m
 
 # DebugFS
 PRODUCT_SET_DEBUGFS_RESTRICTIONS := true
+
+# Dexopt
+PRODUCT_SYSTEM_PROPERTIES += \
+    pm.dexopt.post-boot=speed \
+    pm.dexopt.first-boot=speed \
+    pm.dexopt.boot-after-ota=speed-profile \
+    pm.dexopt.boot-after-mainline-update=speed \
+    pm.dexopt.install=speed-profile \
+    pm.dexopt.install-fast=speed \
+    pm.dexopt.install-bulk=speed-profile \
+    pm.dexopt.install-bulk-secondary=speed \
+    pm.dexopt.install-bulk-downgraded=speed \
+    pm.dexopt.install-bulk-secondary-downgraded=speed \
+    pm.dexopt.bg-dexopt=speed-profile \
+    pm.dexopt.ab-ota=speed-profile \
+    pm.dexopt.inactive=speed \
+    pm.dexopt.cmdline=speed \
+    pm.dexopt.first-use=speed-profile \
+    pm.dexopt.secondary=speed-profile \
+    pm.dexopt.shared=speed
+
+PRODUCT_DEX_PREOPT_DEFAULT_COMPILER_FILTER := speed
+OVERRIDE_DISABLE_DEXOPT_ALL := false
 
 # Display
 PRODUCT_PACKAGES += \
@@ -122,6 +196,8 @@ PRODUCT_PACKAGES += \
     libgpu_tonemapper \
     vendor.qti.hardware.display.allocator-service \
     vendor.qti.hardware.display.composer-service \
+    vendor.qti.hardware.display.composer-service.rc \
+    vendor.qti.hardware.display.composer-service.xml \
     vendor.qti.hardware.display.composer3-V1-ndk.vendor \
     vendor.qti.hardware.display.config-V2-ndk.vendor \
     vendor.qti.hardware.display.demura-service \
@@ -130,14 +206,9 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.touchscreen.multitouch.jazzhand.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.touchscreen.multitouch.jazzhand.xml
 
-# Doze
-ifneq ($(TARGET_IS_TABLET),true)
-PRODUCT_PACKAGES += \
-    OplusDoze
-endif
-
 # DRM
 PRODUCT_PACKAGES += \
+    android.hardware.drm-V1-ndk.vendor \
     android.hardware.drm-service.clearkey
 
 # Enforce generic ramdisk allow list
@@ -149,24 +220,27 @@ PRODUCT_PACKAGES += \
     fastbootd
 
 # Fingerprint
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_PACKAGES += \
-    IFAAService
+    vendor.oplus.hardware.commondcs-service
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.fingerprint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.fingerprint.xml
 
-$(call soong_config_set,surfaceflinger,udfps_lib,//hardware/oplus:libudfps_extension.oplus)
-endif
+# Gatekeeper
+PRODUCT_PACKAGES += \
+    android.hardware.gatekeeper-V1-ndk.vendor \
+    android.hardware.gatekeeper@1.0.vendor \
+    libgatekeeper.vendor
 
 # GPS
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/gps/gps.conf:$(TARGET_COPY_OUT_ODM)/etc/gps.conf
+    $(LOCAL_PATH)/configs/gps.conf:$(TARGET_COPY_OUT_ODM)/etc/gps.conf
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.location.gps.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.location.gps.xml
-endif
+
+PRODUCT_PACKAGES += \
+    android.hardware.gnss-V3-ndk.vendor
 
 # Graphics
 PRODUCT_COPY_FILES += \
@@ -181,89 +255,148 @@ PRODUCT_COPY_FILES += \
 # Health
 PRODUCT_PACKAGES += \
     android.hardware.health-service.qti \
-    android.hardware.health-service.qti_recovery
+    android.hardware.health-service.qti_recovery \
+    android.hardware.health-V1-ndk.vendor \
+    android.hardware.health-V2-ndk.vendor \
+    android.hardware.health@1.0.vendor \
+    android.hardware.health@2.1.vendor
+
+# HIDL
+PRODUCT_PACKAGES += \
+    libhidltransport.vendor \
+    libhwbinder.vendor
 
 # Hotword enrollment
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/permissions/privapp-permissions-hotword.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/privapp-permissions-hotword.xml
+    $(LOCAL_PATH)/configs/privapp-permissions-hotword.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/privapp-permissions-hotword.xml
 
 # IPACM
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_PACKAGES += \
     ipacm \
     IPACM_cfg.xml \
     IPACM_Filter_cfg.xml
-endif
 
 # IR Blaster
-ifneq ($(TARGET_IS_TABLET),true)
-PRODUCT_PACKAGES += \
-    android.hardware.ir-service.oplus
-
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.consumerir.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/android.hardware.consumerir.xml
-endif
+
+PRODUCT_PACKAGES += \
+    android.hardware.ir-service.oplus \
+    consumerir.default
 
 # Init
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/init/fstab.qcom:$(TARGET_COPY_OUT_VENDOR_RAMDISK)/first_stage_ramdisk/fstab.qcom \
+    $(LOCAL_PATH)/init/init.qti.kernel.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/init.qti.kernel.rc
+
 PRODUCT_PACKAGES += \
     fstab.qcom \
     fstab.qcom.vendor_ramdisk \
     init.class_main.sh \
-    init.kernel.post_boot-cliffs_default_3_4_1.sh \
+    init.oplus.rc \
+    init.oplus.sh \
+    init.kernel.post_boot.sh \
     init.kernel.post_boot-pineapple.sh \
     init.kernel.post_boot-pineapple_default_2_3_2_1.sh \
-    init.oplus.rc \
-    init.kernel.post_boot.sh \
-    init.qcom.post_boot.sh \
     init.qcom.early_boot.sh \
+    init.qcom.post_boot.sh \
     init.qcom.rc \
     init.qcom.recovery.rc \
     init.qcom.sh \
-    init.qti.kernel.rc \
     init.target.rc \
     ueventd.oplus.rc \
     ueventd.qcom.rc
 
-$(call soong_config_set,libinit,vendor_init_lib,//$(LOCAL_PATH):libinit_oplus)
+# Identity
+PRODUCT_PACKAGES += \
+    android.hardware.identity-V5-ndk.vendor
 
-# Kernel
-PRODUCT_ENABLE_UFFD_GC := true
-
-PRODUCT_COPY_FILES += \
-    kernel/oneplus/sm8650/modules.systemdlkm_blocklist.msm.pineapple:$(TARGET_COPY_OUT_VENDOR_DLKM)/lib/modules/system_dlkm.modules.blocklist
+# Keymaster
+PRODUCT_PACKAGES += \
+    android.hardware.hardware_keystore.xml \
+    android.hardware.keymaster-V3-ndk.vendor \
+    android.hardware.keymaster@4.1.vendor \
+    libkeymaster_messages.vendor
 
 # Keymint
 PRODUCT_PACKAGES += \
-    android.hardware.hardware_keystore_V3.xml
+    android.hardware.security.keymint-V1-ndk.vendor \
+    android.hardware.security.keymint-V2-ndk.vendor \
+    android.hardware.security.keymint-V3-ndk.vendor \
+    android.hardware.security.rkp-V3-ndk.vendor \
+    android.hardware.security.secureclock-V1-ndk.vendor \
+    android.hardware.security.sharedsecret-V1-ndk.vendor
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.keystore.app_attest_key.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.keystore.app_attest_key.xml \
     frameworks/native/data/etc/android.software.device_id_attestation.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.device_id_attestation.xml
 
-# Lineage Health
+# KProfiles
 PRODUCT_PACKAGES += \
-    vendor.lineage.health-service.default
+    KProfiles
 
-$(call soong_config_set,lineage_health,charging_control_charging_path,/sys/class/oplus_chg/battery/mmi_charging_enable)
+# Lindroid
+TARGET_BUILD_LINDROID := true
 
-# LiveDisplay
-PRODUCT_PACKAGES += \
-    vendor.lineage.livedisplay-service.oplus
+# Logging
+SPAMMY_LOG_TAGS := \
+    OplusTouchDaemon \
+    vendor.qti.bluetooth@1.1-wake_lock \
+    vendor.qti.bluetooth@1.1-ibs_handler \
+    IRIS_LOG_SERV_I7 \
+    SDM \
+    synaLib \
+    CwbService \
+    occe_create \
+    DisplayModeController \
+    ForegroundUtils \
+    BaseDepthController \
+    GraphicsEnvironment \
+    Diag_Lib \
+    AGM \
+    AHAL \
+    MediaStrategy \
+    PAL_ResourceManager \
+    CCodec \
+    CCodecBuffers \
+    CCodecConfig \
+    Codec2Client \
+    tftp_server \
+    COMU
+
+ifneq ($(TARGET_BUILD_VARIANT),eng)
+PRODUCT_VENDOR_PROPERTIES += \
+    $(foreach tag,$(SPAMMY_LOG_TAGS),log.tag.$(tag)=S)
+endif
 
 # Media
 PRODUCT_COPY_FILES += \
     $(AUDIO_HAL_DIR)/configs/common/codec2/media_codecs_c2_audio.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_c2_audio.xml \
     $(AUDIO_HAL_DIR)/configs/common/codec2/service/1.0/c2audio.vendor.base-arm64.policy:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/c2audio.vendor.base-arm64.policy \
-    $(AUDIO_HAL_DIR)/configs/common/codec2/service/1.0/c2audio.vendor.ext-arm64.policy:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/c2audio.vendor.ext-arm64.policy
+    $(AUDIO_HAL_DIR)/configs/common/codec2/service/1.0/c2audio.vendor.ext-arm64.policy:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/c2audio.vendor.ext-arm64.policy \
+    $(LOCAL_PATH)/configs/media_profiles_vendor.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_vendor.xml
+
+PRODUCT_PACKAGES += \
+    android.hardware.media.bufferpool2-V1-ndk.vendor \
+    libavservices_minijail \
+    libavservices_minijail.vendor \
+    libcodec2_hidl@1.2.vendor \
+    libcodec2_vndk.vendor \
+    libpalclient
 
 # Memtrack
 PRODUCT_PACKAGES += \
     vendor.qti.hardware.memtrack-service
 
+# Net
+PRODUCT_PACKAGES += \
+    android.system.net.netd-V1-ndk.vendor
+
 # NFC
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_PACKAGES += \
     android.hardware.nfc-service.nxp \
+    android.hardware.secure_element-V1-ndk.vendor \
+    android.hardware.secure_element@1.0.vendor \
     com.android.nfc_extras \
     Tag
 
@@ -276,11 +409,9 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.se.omapi.uicc.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.se.omapi.uicc.xml \
     frameworks/native/data/etc/com.android.nfc_extras.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/com.android.nfc_extras.xml \
     frameworks/native/data/etc/com.nxp.mifare.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/com.nxp.mifare.xml
-endif
 
 # OPlus dummy services
 PRODUCT_PACKAGES += \
-    vendor.oplus.hardware.commondcs-service \
     vendor.oplus.hardware.osense.client-service \
     vendor.oplus.hardware.performance-service
 
@@ -289,10 +420,12 @@ $(call inherit-product, hardware/oplus/overlay/generic/generic.mk)
 $(call inherit-product, hardware/oplus/overlay/qssi/qssi.mk)
 
 DEVICE_PACKAGE_OVERLAYS += \
-    $(LOCAL_PATH)/overlay-lineage
+    $(LOCAL_PATH)/overlay-yaap
 
 PRODUCT_ENFORCE_RRO_TARGETS := *
 PRODUCT_PACKAGES += \
+    CarrierConfigResCommon \
+    DeviceAsWebcamResTarget \
     FrameworksResTarget \
     NcmTetheringOverlay \
     OPlusFrameworksResCommon \
@@ -300,63 +433,80 @@ PRODUCT_PACKAGES += \
     OPlusSystemUIResCommon \
     WifiResTarget
 
-ifneq ($(TARGET_IS_TABLET),true)
-PRODUCT_PACKAGES += \
-    CarrierConfigResCommon
-endif
-
 # Partitions
-PRODUCT_PACKAGES += \
-    vendor_bt_firmware_mountpoint \
-    vendor_dsp_mountpoint \
-    vendor_firmware_mnt_mountpoint
-
 PRODUCT_USE_DYNAMIC_PARTITIONS := true
 
 # Power
 PRODUCT_PACKAGES += \
-    android.hardware.power-service-qti
+    android.hardware.power@1.2.vendor \
+    android.hardware.power-service.lineage-libperfmgr \
+    libqti-perfd-client
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/perf/perfboostsconfig.xml:$(TARGET_COPY_OUT_VENDOR)/etc/perf/perfboostsconfig.xml \
-    $(LOCAL_PATH)/configs/perf/perfconfigstore.xml:$(TARGET_COPY_OUT_VENDOR)/etc/perf/perfconfigstore.xml \
-    vendor/qcom/opensource/power/config/pineapple/powerhint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.xml
+    $(LOCAL_PATH)/configs/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
 
-$(call soong_config_set,qtipower,mode_ext_lib,power-ext-oplus)
-
-# QTI fwk-detect
+# PowerShare
 PRODUCT_PACKAGES += \
-    libvndfwk_detect_jni.qti_vendor # Needed by CNE app
+    vendor.lineage.powershare-service.default
+
+$(call soong_config_set,lineage_powershare,powershare_path,/proc/wireless/enable_tx)
+# Protobuf
+PRODUCT_PACKAGES += \
+    libprotobuf-cpp-full-3.9.1-vendorcompat
+
+# QCOM
+TARGET_BOARD_PLATFORM := pineapple
 
 # QSPA
 PRODUCT_PACKAGES += \
     qspa_vendor.rc \
     vendor.qti.qspa-service
 
-# SecureElement
-ifneq ($(TARGET_IS_TABLET),true)
+# QTI fwk-detect
 PRODUCT_PACKAGES += \
-    SecureElementResTarget_Vendor
+    libcurl.vendor \
+    libjson \
+    libjsoncpp.vendor \
+    libqti_vndfwk_detect.vendor \
+    libqti_vndfwk_detect_vendor \
+    libsqlite.vendor \
+    libvndfwk_detect_jni.qti.vendor \
+    libvndfwk_detect_jni.qti_vendor
 
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/omapi/com.android.se.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/com.android.se.xml \
-    $(LOCAL_PATH)/configs/omapi/hal_uuid_map_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/hal_uuid_map_23.xml \
-    $(LOCAL_PATH)/configs/omapi/hal_uuid_map_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/hal_uuid_map_29.xml \
-    $(LOCAL_PATH)/configs/omapi/hal_uuid_map_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/hal_uuid_map_31.xml \
-    $(LOCAL_PATH)/configs/omapi/hal_uuid_map_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/hal_uuid_map_config.xml
+# RIL
+PRODUCT_PACKAGES += \
+    android.hardware.radio@1.6.vendor \
+    android.hardware.radio.config-V2-ndk.vendor \
+    android.hardware.radio-V2-ndk.vendor \
+    android.hardware.radio.config-V2-ndk.vendor \
+    android.hardware.radio.data-V2-ndk.vendor \
+    android.hardware.radio.messaging-V2-ndk.vendor \
+    android.hardware.radio.modem-V2-ndk.vendor \
+    android.hardware.radio.network-V2-ndk.vendor \
+    android.hardware.radio.sap-V1-ndk.vendor \
+    android.hardware.radio.sim-V2-ndk.vendor \
+    android.hardware.radio.voice-V2-ndk.vendor \
+    librmnetctl
 
-PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.se.omapi.uicc.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.se.omapi.uicc.xml
-endif
+# The default value of this variable is false and should only be set to true when
+# the device allows users to retain eSIM profiles after factory reset of user data.
+PRODUCT_PRODUCT_PROPERTIES += \
+    masterclear.allow_retain_esim_profiles_after_fdr=true
+
+# QSPA
+PRODUCT_PACKAGES += \
+    vendor.qti.qspa-service
 
 # Sensors
 PRODUCT_PACKAGES += \
-    android.hardware.sensors-service.multihal \
+    android.frameworks.sensorservice-V1-ndk.vendor \
+    android.frameworks.sensorservice@1.0.vendor \
+    android.hardware.sensors-V2-ndk.vendor \
+    android.hardware.sensors-service.oplus-multihal \
+    libdumpstateutil.vendor \
+    libsensorndkbridge \
     sensors.dynamic_sensor_hal \
     sensors.oplus
-
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/sensors/hals.conf:$(TARGET_COPY_OUT_VENDOR)/etc/sensors/hals.conf
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.sensor.accelerometer.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.accelerometer.xml \
@@ -367,29 +517,39 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.sensor.gyroscope.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.gyroscope.xml \
     frameworks/native/data/etc/android.hardware.sensor.hifi_sensors.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.hifi_sensors.xml \
     frameworks/native/data/etc/android.hardware.sensor.light.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.light.xml \
+    frameworks/native/data/etc/android.hardware.sensor.proximity.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.proximity.xml \
     frameworks/native/data/etc/android.hardware.sensor.relative_humidity.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.relative_humidity.xml \
     frameworks/native/data/etc/android.hardware.sensor.stepcounter.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.stepcounter.xml \
     frameworks/native/data/etc/android.hardware.sensor.stepdetector.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.stepdetector.xml
 
-ifneq ($(TARGET_IS_TABLET),true)
-PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.sensor.proximity.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.sensor.proximity.xml
-endif
+# Sensors (wake)
+$(call soong_config_set,oplus_sensors,uses_tap_sensor,true)
+$(call soong_config_set,oplus_sensors,uses_double_tap_sensor,true)
 
 # Shipping API
 BOARD_SHIPPING_API_LEVEL := 34
-PRODUCT_SHIPPING_API_LEVEL += $(BOARD_SHIPPING_API_LEVEL)
+PRODUCT_SHIPPING_API_LEVEL := $(BOARD_SHIPPING_API_LEVEL)
 
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
     $(LOCAL_PATH) \
-    hardware/oplus
+    hardware/google/interfaces \
+    hardware/google/pixel \
+    hardware/lineage/interfaces/power-libperfmgr \
+    hardware/oplus \
+    hardware/qcom-caf/common/libqti-perfd-client \
+    kernel/oneplus/sm8650 \
+    kernel/oneplus/sm8650-modules
 
 # Storage
 $(call inherit-product, $(SRC_TARGET_DIR)/product/emulated_storage.mk)
 
+# Task Profiles
+PRODUCT_COPY_FILES += \
+    system/core/libprocessgroup/profiles/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json \
+    system/core/libprocessgroup/profiles/cgroups.json:$(TARGET_COPY_OUT_VENDOR)/etc/cgroups.json
+
 # Telephony
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_PACKAGES += \
     extphonelib \
     extphonelib-product \
@@ -397,7 +557,6 @@ PRODUCT_PACKAGES += \
     extphonelib_product.xml \
     ims-ext-common \
     ims_ext_common.xml \
-    nrmodeswitcher \
     qti-telephony-hidl-wrapper \
     qti-telephony-hidl-wrapper-prd \
     qti_telephony_hidl_wrapper.xml \
@@ -408,36 +567,32 @@ PRODUCT_PACKAGES += \
     qti_telephony_utils_prd.xml \
     telephony-ext
 
-PRODUCT_BOOT_JARS += \
-    telephony-ext
-
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.telephony.cdma.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.cdma.xml \
     frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.gsm.xml \
     frameworks/native/data/etc/android.hardware.telephony.ims.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.ims.xml \
-    frameworks/native/data/etc/android.hardware.telephony.mbms.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.mbms.xml
-
-$(call inherit-product, hardware/oplus/oplus-fwk/oplus-fwk.mk)
-endif
-
-PRODUCT_COPY_FILES += \
+    frameworks/native/data/etc/android.hardware.telephony.mbms.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.mbms.xml \
     frameworks/native/data/etc/android.software.sip.voip.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.sip.voip.xml
 
 # Thermal
 PRODUCT_PACKAGES += \
-    android.hardware.thermal-service.qti
+    android.hardware.thermal-service.qti \
+    android.hardware.thermal-V1-ndk.vendor \
+    android.hardware.thermal@2.0.vendor
+
+$(call soong_config_set,qti_thermal,netlink,true)
 
 # Touch
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_PACKAGES += \
-    vendor.lineage.touch-service.oplus
+    TouchGestures \
+    vendor.lineage.touch@1.0-service.oplus
 
 $(call soong_config_set,OPLUS_LINEAGE_TOUCH_HAL,INCLUDE_DIR,$(LOCAL_PATH)/touch/include)
-$(call soong_config_set,OPLUS_LINEAGE_TOUCH_HAL,USE_OPLUSTOUCH,true)
-endif
 
-# Virtualization service
-$(call inherit-product, packages/modules/Virtualization/apex/product_packages.mk)
+# Trusted User Interface
+PRODUCT_PACKAGES += \
+    android.hidl.memory.block@1.0.vendor \
+    vendor.qti.hardware.systemhelper@1.0.vendor
 
 # Update engine
 PRODUCT_PACKAGES += \
@@ -452,8 +607,7 @@ PRODUCT_PACKAGES_DEBUG += \
 PRODUCT_PACKAGES += \
     android.hardware.usb-service.qti \
     android.hardware.usb.gadget-service.qti \
-    init.qcom.usb.rc \
-    init.qcom.usb.sh \
+    libusbhost.vendor \
     oplus_usb_compositions.conf
 
 PRODUCT_SOONG_NAMESPACES += \
@@ -463,43 +617,36 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.usb.accessory.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.accessory.xml \
     frameworks/native/data/etc/android.hardware.usb.host.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.host.xml
 
+PRODUCT_PACKAGES += \
+    init.qcom.usb.rc \
+    init.qcom.usb.sh
+
 # Vendor service manager
 PRODUCT_PACKAGES += \
     vndservicemanager
+
+# Vendor libstdc++
+PRODUCT_PACKAGES += \
+    libstdc++_vendor
 
 # Verified Boot
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.software.verified_boot.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.verified_boot.xml
 
 # Vibrator
-ifneq ($(TARGET_IS_TABLET),true)
 PRODUCT_COPY_FILES += \
     vendor/qcom/opensource/vibrator/excluded-input-devices.xml:$(TARGET_COPY_OUT_VENDOR)/etc/excluded-input-devices.xml
-endif
-
-# VINTF
-DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE += \
-    hardware/oplus/vintf/device_framework_matrix.xml \
-    hardware/qcom-caf/common/vendor_framework_compatibility_matrix.xml
-DEVICE_FRAMEWORK_MANIFEST_FILE += device/oneplus/sm8650-common/vintf/framework_manifest.xml
-DEVICE_MATRIX_FILE := hardware/qcom-caf/common/compatibility_matrix.xml
-DEVICE_MANIFEST_FILE := \
-    $(AUDIO_HAL_DIR)/configs/common/manifest_non_qmaa.xml \
-    $(AUDIO_HAL_DIR)/configs/common/manifest_non_qmaa_extn.xml \
-    $(LOCAL_PATH)/vintf/manifest_pineapple.xml
-
-ifneq ($(TARGET_IS_TABLET),true)
-DEVICE_MANIFEST_FILE += \
-    $(LOCAL_PATH)/vintf/network_manifest.xml
-
-ODM_MANIFEST_FILES := \
-    $(LOCAL_PATH)/vintf/network_manifest_odm.xml
-endif
 
 # WiFi
+FORCE_USE_ANDROIDMK_FOR_WPA_CONF := true
 PRODUCT_PACKAGES += \
     android.hardware.wifi-service \
+    android.hardware.wifi.supplicant-V1-ndk.vendor \
+    android.hardware.wifi.supplicant-V2-ndk.vendor \
+    android.hardware.wifi-V1-ndk.vendor \
+    android.hardware.wifi.hostapd-V1-ndk.vendor \
     hostapd \
+    libwpa_client \
     libwifi-hal-ctrl \
     libwifi-hal-qcom \
     wpa_supplicant \

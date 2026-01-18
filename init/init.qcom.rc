@@ -87,6 +87,8 @@ on early-init
 
     chown root system /dev/kmsg
     chmod 0620 /dev/kmsg
+    # Load WIGIG platform driver
+    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules msm_11ad_proxy
 
 on init
 
@@ -168,6 +170,9 @@ on boot
     mkdir /mnt/vendor/persist/time 0770 system system
     mkdir /mnt/vendor/persist/iar_db 0770 system system
     mkdir /mnt/vendor/spunvm 0770 system system
+
+    #Create WIGIG socket area
+    mkdir /dev/socket/wigig 0770 wifi wifi
 
     setprop wifi.interface wlan0
 
@@ -262,12 +267,6 @@ on post-fs-data
     # Create directory used by display clients
     mkdir /data/vendor/display 0770 system graphics
 
-    # Change lm related dirs
-    mkdir /data/vendor/lm 0700 root root
-
-    # Create directory used by powermodule
-    mkdir /data/vendor/pwr 0700 root root
-
     # Create directory used by media clients
     mkdir /data/vendor/media 0770 mediacodec media
 
@@ -295,8 +294,12 @@ on post-fs-data
     mkdir /data/vendor/wifi/hostapd 0770 wifi wifi
     mkdir /data/vendor/wifi/hostapd/ctrl 0770 wifi wifi
     mkdir /data/vendor/wifi/wpa_supplicant 0770 wifi wifi
+    mkdir /data/vendor/wifi/wigig_hostapd 0770 wifi wifi
     mkdir /data/vendor/wifi/wpa 0770 wifi wifi
     mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
+
+    # Create the directories used by WiGig Sensing
+    mkdir /data/vendor/sensing 0770 system wifi
 
     # Create the directories used by CnE subsystem
     mkdir /data/vendor/connectivity 0771 radio radio
@@ -337,6 +340,16 @@ on post-fs-data
     #Create the symlink to qcn wpa_supplicant folder for ar6000 wpa_supplicant
     #symlink /data/misc/wifi/wpa_supplicant /data/system/wpa_supplicant
 
+    #Create directories for Location services
+    mkdir /data/vendor/location 0770 gps gps
+    mkdir /data/vendor/location/mq 0770 gps gps
+    mkdir /data/vendor/location/xtwifi 0770 gps gps
+    mkdir /dev/socket/location 0770 gps gps
+    mkdir /dev/socket/location/mq 0770 gps gps
+    mkdir /dev/socket/location/xtra 0770 gps gps
+    mkdir /dev/socket/location/ehub 0770 gps gps
+    mkdir /dev/socket/location/dgnss 0770 gps gps
+
     #Create directories for wifihal services
     mkdir /dev/socket/wifihal 0770 wifi wifi
     chmod 2770 /dev/socket/wifihal
@@ -353,17 +366,9 @@ on post-fs-data
     mkdir /data/vendor/fm 0770 system system
     chmod 0770 /data/vendor/fm
 
-    #Create PERFD deamon related dirs
-    mkdir /data/vendor/perfd 0770 root system
-    chmod 2770 /data/vendor/perfd
-    rm /data/vendor/perfd/default_values
-
     mkdir /data/vendor/secure_element 0777 system system
 
     mkdir /data/vendor/nfc 0770 nfc nfc
-
-    #Create IOP  deamon related dirs
-    mkdir /data/vendor/iop 0700 root system
 
     # Mark the copy complete flag to not completed
     write /data/vendor/radio/copy_complete 0
@@ -399,11 +404,6 @@ on post-fs-data
     mkdir /data/vendor/swap 0770 root system
     chmod 2770 /data/vendor/swap
 
-    # set aggressive read ahead for dm-0 and dm-1 during boot up
-    write /sys/block/dm-0/queue/read_ahead_kb 2048
-    write /sys/block/dm-1/queue/read_ahead_kb 2048
-    write /sys/block/dm-2/queue/read_ahead_kb 2048
-
     # Create vpp directory
     mkdir /data/vendor/vpp 0770 media media
 
@@ -419,18 +419,17 @@ service nqnfcinfo /system/vendor/bin/nqnfcinfo
     user system
     oneshot
 
-service iop /system/vendor/bin/iop
-    class main
-    user root
-    group root
-    disabled
-    socket iop seqpacket 0666 root system
-
 service qcomsysd /system/vendor/bin/qcom-system-daemon
     class main
     user root
     group root diag oem_2901
     disabled
+
+on property:persist.vendor.qcomsysd.enabled=1
+    enable qcomsysd
+
+on property:persist.vendor.qcomsysd.enabled=0
+    stop qcomsysd
 
 # Not launch qcomsysd process in USER BUILD
 on property:persist.vendor.qcomsysd.enabled=1 && property:ro.build.type=userdebug
@@ -443,8 +442,6 @@ on property:persist.vendor.qcomsysd.enabled=0
     stop qcomsysd
 
 service vendor.ssr_setup /system/vendor/bin/ssr_setup
-    user system
-    group system
     oneshot
     disabled
 
@@ -483,10 +480,14 @@ on property:persist.vendor.ssr.restart_level=*
     start vendor.ssr_setup
 
 on property:persist.vendor.ssr.enable_ramdumps=1
-    chown system system /sys/module/qcom_ramdump/parameters/enable_dump_collection
-    chmod 0660 /sys/module/qcom_ramdump/parameters/enable_dump_collection
+    write /sys/module/subsystem_restart/parameters/enable_ramdumps 1
+    write /sys/module/qcom_ramdump/parameters/enable_dump_collection 1
     mkdir /data/vendor/ramdump_ssr 770 system system
     start vendor.ss_ramdump
+
+on property:persist.vendor.ssr.enable_ramdumps=0
+    write /sys/module/subsystem_restart/parameters/enable_ramdumps 0
+    write /sys/module/qcom_ramdump/parameters/enable_dump_collection 0
 
 on property:persist.vendor.sys.rawdump_copy=1
     write /sys/kernel/dload/emmc_dload 1
@@ -500,14 +501,9 @@ on property:sys.boot_completed=1
     write /sys/bus/platform/devices/1d84000.ufshc/clkscale_enable 1
     write /sys/bus/platform/devices/1d84000.ufshc/auto_hibern8 5000
     write /sys/bus/platform/devices/1d84000.ufshc/clkgate_enable 1
-    #Reset read ahead for dm-0 and dm-1 to 512kb
-    write /sys/block/dm-0/queue/read_ahead_kb 512
-    write /sys/block/dm-1/queue/read_ahead_kb 512
     #WDSP FW boot sysfs node used by STHAL
     chown media audio /sys/kernel/wdsp0/boot
     chown media audio /sys/kernel/wcd_cpe0/fw_name
-    #Reinit lmkd to reconfigure lmkd properties
-    setprop lmkd.reinit 1
     chown media audio /sys/kernel/aud_dev/state
     write /sys/devices/virtual/cvp/cvp/boot 1
 
@@ -528,7 +524,6 @@ on property:vendor.media.target.version=*
 on property:vendor.media.target_variant=*
     setprop ro.media.xml_variant.codecs ${vendor.media.target_variant}
     setprop ro.media.xml_variant.codecs_performance ${vendor.media.target_variant}
-    setprop ro.media.xml_variant.profiles ${vendor.media.target_variant}
 
 service qcom-c_core-sh  /vendor/bin/init.qcom.class_core.sh
     class core
@@ -555,6 +550,88 @@ service qmiproxy /system/bin/qmiproxy
     user radio
     group radio diag
     disabled
+
+service vendor.wigig_supplicant /vendor/bin/hw/wpa_supplicant \
+    -iwigig0 -Dnl80211 -c/data/vendor/wifi/wigig_supplicant.conf \
+    -m/data/vendor/wifi/wigig_p2p_supplicant.conf \
+    -O/data/vendor/wifi/wigig_sockets -dd \
+    -e/data/vendor/wifi/wigig_entropy.bin -g@android:wigig/wpa_wigig0 \
+    -S wigigsvc
+    #   we will start as root and wpa_supplicant will switch to user wifi
+    #   after setting up the capabilities required for WEXT
+    #   user wifi
+    #   group wifi inet keystore
+    class main
+    socket wigig/wpa_wigig0 dgram 660 wifi wifi
+    disabled
+    oneshot
+
+# Data Migration
+service vendor.move_wifi_data /system/bin/move_wifi_data.sh
+    class main
+    user  wifi
+    group wifi
+    disabled
+    oneshot
+
+service wigignpt /vendor/bin/wigignpt
+    interface vendor.qti.hardware.wigig.netperftuner@1.0::INetPerfTuner default
+    class hal
+    socket wigig/wigignpt stream 660 system wifi
+    user system
+    group wifi
+    capabilities NET_ADMIN
+    disabled
+
+on property:persist.vendor.wigig.npt.enable=1
+    start wigignpt
+
+service vendor.sensingdaemon /vendor/bin/sensingdaemon
+    class hal
+    socket wigig/sensingdaemon stream 660 system wifi
+    user system
+    group wifi
+    disabled
+
+service dhcpcd_wlan0 /system/bin/dhcpcd -ABKLG
+    class late_start
+    disabled
+    oneshot
+
+service dhcpcd_bond0 /system/bin/dhcpcd -ABKLG
+    class late_start
+    disabled
+    oneshot
+
+service dhcpcd_p2p /system/bin/dhcpcd -ABKLG
+    class late_start
+    disabled
+    oneshot
+
+service dhcpcd_wigig0 /system/bin/dhcpcd -ABKLG
+    class late_start
+    disabled
+    oneshot
+
+service iprenew_wlan0 /system/bin/dhcpcd -n
+    class late_start
+    disabled
+    oneshot
+
+service iprenew_bond0 /system/bin/dhcpcd -n
+    class late_start
+    disabled
+    oneshot
+
+service iprenew_p2p /system/bin/dhcpcd -n
+    class late_start
+    disabled
+    oneshot
+
+service iprenew_wigig0 /system/bin/dhcpcd -n
+    class late_start
+    disabled
+    oneshot
 
 service ptt_socket_app /system/vendor/bin/ptt_socket_app -d
     class main
@@ -589,6 +666,16 @@ on property:sys.shutdown.requested=*
     write /sys/kernel/shutdown_wlan/shutdown 1
     stop cnss-daemon
 
+service dhcpcd_bt-pan /system/bin/dhcpcd -BKLG
+    class late_start
+    disabled
+    oneshot
+
+service iprenew_bt-pan /system/bin/dhcpcd -n
+    class late_start
+    disabled
+    oneshot
+
 service ssgqmigd /vendor/bin/ssgqmigd
     class late_start
     user radio
@@ -600,6 +687,11 @@ service mlid /vendor/bin/mlid
     user gps
     group gps
     socket mlid stream 0666 gps gps
+
+service loc_launcher /system/vendor/bin/loc_launcher
+    class late_start
+    user gps
+    group gps
 
 service qcom-sh /vendor/bin/init.qcom.sh
     class late_start
@@ -628,7 +720,6 @@ service qti-testscripts /system/bin/sh /product/etc/init.qcom.testscripts.sh
 
 service wifi-sdio-on /vendor/bin/init.qcom.sdio.sh
     class late_start
-    user wifi
     group wifi inet
     disabled
     oneshot
@@ -709,6 +800,15 @@ service diag_mdlog_stop /system/vendor/bin/diag_mdlog -k
     disabled
     oneshot
 
+service qlogd /system/xbin/qlogd
+    socket qlogd stream 0662 system system
+    class main
+    disabled
+on property:persist.sys.qlogd=1
+    start qlogd
+on property:persist.sys.qlogd=0
+    stop qlogd
+
 service vm_bms /vendor/bin/vm_bms
     user root
     group root
@@ -774,6 +874,12 @@ service poweroffhandler /system/vendor/bin/poweroffhandler
     disabled
     oneshot
 
+service time_daemon /vendor/bin/time_daemon
+    class main
+    user system
+    group system
+    capabilities SYS_TIME
+
 # Set vendor-ril lib path based on Meta version
 on property:vendor.rild.libpath=*
     setprop rild.libpath ${vendor.rild.libpath}
@@ -783,9 +889,7 @@ on property:ro.vendor.radio.noril=*
 
 service vendor.power_off_alarm /vendor/bin/power_off_alarm
     class core
-    user system
     group system
-    capabilities WAKE_ALARM
     disabled
     oneshot
 
@@ -808,7 +912,6 @@ on property:vendor.chre.enabled=0
 
 service bugreport /system/bin/dumpstate -d -p -B -z -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
     class main
-    user root
     disabled
     oneshot
     keycodes 114 115 116

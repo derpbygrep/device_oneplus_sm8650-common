@@ -36,11 +36,18 @@
 
 #<src>                                                 <mnt_point>            <type>  <mnt_flags and options>                            <fs_mgr_flags>
 system                                                  /system                ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+system                                                  /system                erofs   ro                                                   wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
 system_ext                                              /system_ext            ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+system_ext                                              /system_ext            erofs   ro                                                   wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
 product                                                 /product               ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+product                                                 /product               erofs   ro                                                   wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+vendor                                                  /vendor                ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
 vendor                                                  /vendor                erofs   ro                                                   wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
+vendor_dlkm                                             /vendor_dlkm           ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
 vendor_dlkm                                             /vendor_dlkm           erofs   ro                                                   wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
+system_dlkm                                             /system_dlkm           ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
 system_dlkm                                             /system_dlkm           erofs   ro                                                   wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+odm                                                     /odm                   ext4    ro,barrier=1,discard                                 wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
 odm                                                     /odm                   erofs   ro                                                   wait,slotselect,avb=vbmeta_vendor,logical,first_stage_mount
 /dev/block/by-name/boot                                 /boot                  emmc    defaults                                             slotselect,avb=vbmeta,first_stage_mount
 /dev/block/by-name/init_boot                            /init_boot             emmc    defaults                                             slotselect,avb=vbmeta,first_stage_mount
@@ -60,3 +67,4 @@ odm                                                     /odm                   e
 /dev/block/bootdevice/by-name/bluetooth                 /vendor/bt_firmware    vfat    ro,shortname=lower,uid=1002,gid=3002,dmask=227,fmask=337,context=u:object_r:bt_firmware_file:s0 wait,slotselect
 /dev/block/bootdevice/by-name/qmcs                      /mnt/vendor/qmcs       vfat    noatime,nosuid,nodev,context=u:object_r:vendor_qmcs_file:s0   wait,check,formattable
 /dev/block/bootdevice/by-name/spunvm                    /mnt/vendor/spunvm     vfat    noatime,nosuid,nodev,context=u:object_r:vendor_spunvm_file:s0   wait,check,formattable
+/dev/block/zram0                                        none                   swap    defaults      zramsize=50%
